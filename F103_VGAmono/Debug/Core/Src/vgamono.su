@@ -1,0 +1,13 @@
+../Core/Src/vgamono.c:16:6:ClearScreen	16	static
+../Core/Src/vgamono.c:20:6:DrawPixel	16	static
+../Core/Src/vgamono.c:35:6:DrawLine	40	static
+../Core/Src/vgamono.c:105:6:WriteChar	48	static
+../Core/Src/vgamono.c:139:6:WriteString	24	static
+../Core/Src/vgamono.c:156:6:SetCursor	16	static
+../Core/Src/vgamono.c:162:14:VGA_DegToRad	16	static
+../Core/Src/vgamono.c:167:17:VGA_NormalizeTo0_360	24	static
+../Core/Src/vgamono.c:181:6:DrawArc	64	static
+../Core/Src/vgamono.c:218:6:DrawCircle	40	static
+../Core/Src/vgamono.c:262:6:DrawRectangle	32	static
+../Core/Src/vgamono.c:270:6:FillRectangle	40	static
+../Core/Src/vgamono.c:279:6:FillCircle	48	static
