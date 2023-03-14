@@ -9,8 +9,8 @@
 #include "math.h"
 #include <string.h>
 
-uint8_t VGA_obuffer[4][64];
-uint8_t VGA_buffer[VGA_VBUFFER][50];
+uint8_t VGA_obuffer[VGA_FULL];
+uint8_t VGA_buffer[VGA_VBUFFER][VGA_LBUFFER];
 VGA_t VGA;
 
 void ClearScreen(VGA_COLOR color){

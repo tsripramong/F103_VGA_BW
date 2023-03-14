@@ -10,19 +10,21 @@
 #define INC_VGAMONO_H_
 
 //#define VGA_WIDTH  392
-#define VGA_WIDTH  400
-#define VGA_HEIGHT 298
-#define VGA_VBUFFER 300
+#define VGA_WIDTH  	398
+#define VGA_HEIGHT 	298
+#define VGA_VBUFFER 300  //Video Buffer height
+#define VGA_LBUFFER 50   //Video Buffer width
+
+#define VGA_LBUFFERSIZE 64  //Total display buffer width
+#define VGA_FULL		256
+#define VGA_HALF		128
 
 #define VGA_WHITE 1
 #define VGA_BLACK 0
 #define VGA_COLOR uint8_t
 
-#define VGA_offsetX 0 //step by eight pixel (16 real pixel)
-#define VGA_offsetY 6
-
-extern uint8_t VGA_obuffer[4][64];
-extern uint8_t VGA_buffer[VGA_VBUFFER][50];
+extern uint8_t VGA_obuffer[VGA_FULL];
+extern uint8_t VGA_buffer[VGA_VBUFFER][VGA_LBUFFER];
 typedef struct {
     uint16_t CurrentX;
     uint16_t CurrentY;

@@ -50,15 +50,10 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
-//uint16_t line=0;
-//uint8_t l=0;
+uint16_t VOFFSET=0,preVoffset=16183;
 uint16_t line=0;
 uint16_t firstTrig=1;
-uint16_t vga_voff11=0;		//offset for 1st line
-uint16_t vga_voff12=64;		//offset for the double of 1st line
-uint16_t vga_voff21=128;	//offset for 2nd line
-uint16_t vga_voff22=192;	//offset for the double of 2nd line
-uint16_t spi_len = VGA_WIDTH/8+VGA_offsetX;
+uint16_t vga_voff[4];
 
 /* USER CODE END PV */
 
@@ -76,66 +71,70 @@ static void MX_TIM4_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-//uint32_t arr = 16182;
-uint32_t arr = 16183;
+void VGA_update(){
+	vga_voff[0]=VOFFSET;
+	for(int i=1;i<4;i++){
+		vga_voff[i]=vga_voff[i-1]+VGA_LBUFFERSIZE;
+	}
+	TIM4->ARR = preVoffset;
+}
+
+//Horizontal adjustment
 char tmp[32];
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin){
 	if(GPIO_Pin==GPIO_PIN_8){
-		arr-=1;
+		if(preVoffset>0)preVoffset-=1;
 	}
 	else if(GPIO_Pin==GPIO_PIN_9){
-		arr+=1;
+		if(preVoffset<60000)
+		preVoffset+=1;
 	}
 	//Horizontal Line adjustment
-	TIM4->ARR = arr;
-	sprintf(tmp,"%ld ",arr);
-	  SetCursor(3,50);
-	  WriteString(tmp,Font_7x10,VGA_WHITE);
+	VGA_update();
+	sprintf(tmp,"%d|%d",preVoffset,VOFFSET);
+	SetCursor(3,50);
+	WriteString(tmp,Font_7x10,VGA_WHITE);
 }
-
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
 	if(htim==&htim2){
 		line=0;
-		firstTrig=1;
+		firstTrig=1; //
 	}
 	if(htim==&htim4){
 		if(firstTrig){
 			firstTrig=0;
 		}else{
-		if(line==0)
-		  HAL_SPI_Transmit_DMA(&hspi1,VGA_obuffer[0],256);
+			if(line==0)
+		        HAL_SPI_Transmit_DMA(&hspi1,VGA_obuffer,VGA_FULL);
 		}
 	}
 }
 
 void HAL_SPI_TxHalfCpltCallback(SPI_HandleTypeDef *hspi){
      //fill in line1
-	memcpy((uint8_t *)VGA_obuffer + vga_voff11,VGA_buffer[line],50);
-	memcpy((uint8_t *)VGA_obuffer + vga_voff12,VGA_buffer[line],50);
+	if(line<VGA_VBUFFER){
+	    memcpy(VGA_obuffer + vga_voff[0],VGA_buffer[line],VGA_LBUFFER);
+	    memcpy(VGA_obuffer + vga_voff[1],VGA_buffer[line],VGA_LBUFFER);
+	}
 	line++;
 	if(line==VGA_VBUFFER){
-		memset((uint8_t *)VGA_obuffer+vga_voff21,0x0,50);
-		memset((uint8_t *)VGA_obuffer+vga_voff22,0x0,50);
-		memset((uint8_t *)VGA_obuffer+vga_voff11,0x0,50);
-		memset((uint8_t *)VGA_obuffer+vga_voff12,0x0,50);
 		HAL_SPI_DMAStop(&hspi1);
+		memset(VGA_obuffer,0x0,VGA_FULL);
 	}
 }
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
     //fill in line2 (later half)
-	memcpy((uint8_t *)VGA_obuffer + vga_voff21,VGA_buffer[line],50);
-	memcpy((uint8_t *)VGA_obuffer + vga_voff22,VGA_buffer[line],50);
+	if(line<VGA_VBUFFER){
+	    memcpy(VGA_obuffer + vga_voff[2],VGA_buffer[line],VGA_LBUFFER);
+   	    memcpy(VGA_obuffer + vga_voff[3],VGA_buffer[line],VGA_LBUFFER);
+	}
 	line++;
 	if(line==VGA_VBUFFER){
-		memset((uint8_t *)VGA_obuffer+vga_voff11,0x0,50);
-		memset((uint8_t *)VGA_obuffer+vga_voff12,0x0,50);
-		memset((uint8_t *)VGA_obuffer+vga_voff21,0x0,50);
-		memset((uint8_t *)VGA_obuffer+vga_voff22,0x0,50);
-//stop DMA
 		HAL_SPI_DMAStop(&hspi1);
+		memset(VGA_obuffer,0x0,VGA_FULL);
 	}
 }
 /* USER CODE END 0 */
@@ -147,12 +146,6 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-//  int i,j;
-/*
-  for(j=8;j<102;j++)
-  for(i=0;i<50;i++)
-	  VGA_buffer[j][i] = (uint8_t)((i+j)&0xff);
-	  */
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -179,24 +172,18 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+  //H-sync
   HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_3);
-
+  //V-sync
   HAL_TIM_Base_Start_IT(&htim2);
-  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_3);
-
+  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
+  //Delay before drawing the first pixel for each frame
   HAL_TIM_Base_Start_IT(&htim4);
-  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_1);
 
-  int maxX=VGA_WIDTH-1,maxY=VGA_HEIGHT-1;
+  VGA_update();
   ClearScreen(VGA_BLACK);
-  DrawLine(0,0,0,maxY,VGA_WHITE);
-  DrawLine(maxX,0,maxX,maxY,VGA_WHITE);
-  DrawLine(0,maxY,maxX,maxY,VGA_WHITE);
-  DrawLine(0,0,maxX,0,VGA_WHITE);
+  DrawRectangle(0,0,VGA_WIDTH-1,VGA_HEIGHT-1,VGA_WHITE);
 
   char msg[32]="Testing";
   SetCursor(3,3);
@@ -212,12 +199,11 @@ int main(void)
 	  x = rand()%VGA_WIDTH;
 	  y = rand()%VGA_HEIGHT;
 	  DrawCircle(x,y,r,VGA_WHITE);
-//	  HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
 	  z=z+1;
 	  if(z>=100){
 		  z=0;
 		  ClearScreen(VGA_BLACK);
-		  DrawRectangle(0,0,maxX,maxY,VGA_WHITE);
+		  DrawRectangle(0,0,VGA_WIDTH-1,VGA_HEIGHT-1,VGA_WHITE);
 		  SetCursor(3,3);
 		  WriteString(msg,Font_7x10,VGA_WHITE);
 	  }
@@ -352,9 +338,9 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM2;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 72;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
@@ -426,11 +412,11 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM2;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 2;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -456,7 +442,6 @@ static void MX_TIM4_Init(void)
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_SlaveConfigTypeDef sSlaveConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM4_Init 1 */
 
@@ -476,10 +461,6 @@ static void MX_TIM4_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sSlaveConfig.SlaveMode = TIM_SLAVEMODE_RESET;
   sSlaveConfig.InputTrigger = TIM_TS_ITR1;
   if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
@@ -492,18 +473,9 @@ static void MX_TIM4_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM2;
-  sConfigOC.Pulse = 100-1;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM4_Init 2 */
 
   /* USER CODE END TIM4_Init 2 */
-  HAL_TIM_MspPostInit(&htim4);
 
 }
 
