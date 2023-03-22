@@ -2,6 +2,9 @@
 
 A working example for 1-bit(monochrome) VGA display for Blue Pill board using (mainly)HAL API.
 
+[![VIDEO](https://img.youtube.com/vi/H0SbCmFXLQI/0.jpg)](https://www.youtube.com/watch?v=H0SbCmFXLQI)
+
+
 ## Video Mode and Timing
 SVGA 800x600 @56 Hz
 
