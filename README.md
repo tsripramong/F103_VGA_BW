@@ -89,6 +89,6 @@ TIM2 interrupt is used in the program to reset the SPI1_DMA trigger TIM4 interru
 
 ![](Pictures/F103C8T6_nvic.png)
 
-Finally, here we set PB8 and PB9 as External Interrupt Mode (rising edge trigger). Using switches connected to ground, we use them to change preVoffset value to adjust the picture location on screen. You may omitted this part and just change preVoffset value within the program code to make the horizonal adjustment yourself.
+Finally, here we set PB8 and PB9 as External Interrupt Mode (rising edge trigger). Using switches connected to ground, we use them to change preVoffset value to adjust the picture location on screen. You may omitted this part and just change preVoffset value within the program code to make the horizontal adjustment yourself.
 
 ![](Pictures/F103C8T6_gpio.png)
